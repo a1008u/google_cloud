@@ -1,0 +1,6 @@
+{
+    "dependencies": {
+        "markmap": "^0.6.1",
+        "markmap-cli": "^0.13.3"
+    }
+}

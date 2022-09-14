@@ -1,0 +1,51 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.205.2/containers/docker-existing-dockerfile
+{
+	"name": "fp-node",
+
+	// Sets the run context to one level up instead of the .devcontainer folder.
+	"context": "..",
+
+	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
+	"dockerFile": "./Dockerfile",
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": {},
+
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"gera2ld.markmap-vscode",
+		"ritwickdey.LiveServer",
+		"hookyqr.beautify",
+		"lacroixdavid1.vscode-format-context-menu",
+		"eamodio.gitlens",
+		"oderwat.indent-rainbow",
+		"ionutvmi.path-autocomplete",
+		"chrmarti.regex",
+		"humao.rest-client",
+		"wayou.vscode-icons-mac",
+		"coenraads.bracket-pair-colorizer",
+		"samuelcolvin.jinjahtml",
+		"naumovs.color-highlight",
+		"usernamehw.indent-one-space",
+		"viktorzetterstrom.non-breaking-space-highlighter",
+		"ibm.output-colorizer",
+		"marp-team.marp-vscode",
+		"DavidAnson.vscode-markdownlint",
+		"nopeslide.vscode-drawio-plugin-mermaid",
+	],
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Uncomment the next line to run commands after the container is created - for example installing curl.
+	// "postCreateCommand": "apt-get update && apt-get install -y curl",
+
+	// Uncomment when using a ptrace-based debugger like C++, Go, and Rust
+	// "runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+
+	// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
+	// "mounts": [ "source=${localWorkspaceFolder}/secrets,target=/secrets,type=bind" ],
+
+	// Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
+}
