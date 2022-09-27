@@ -147,8 +147,44 @@
 ### 5.1 Identity and Access Management（IAM）を管理する。 以下のようなタスクを行います。
 
 #### a. IAM ポリシーの表示
+
+``` shell
+# プロジェクトに紐づくポリシーの表示(プロジェクト内のbindingsを表示)
+gcloud projects get-iam-policy ace-exam-project
+
+# roleの詳細を表示するコマンド
+gcloud iam roles describe roles/appengine.deployer
+```
 #### b. IAM ポリシーの作成
-#### c. さまざまなロールタイプの管理とカスタム IAM ロールの定義（基本ロール、事前定義ロール、カスタムロールなど）
+
+``` shell
+# roleのbinging
+# gcloud projects add-iam-policy-binding [RESOURCE-NAME] --member user:[USER- EMAIL] --role [ROLE-ID]
+gcloud projects add-iam-policy-binding ace-exam-project --member user:jane@ aceexam.com --role roles/appengine.deployer
+```
+
+原則　　
+> セキュリティのベストプラクティスは、最小限の権限を割り当てることと、職務の分離を維持することの2つです。
+> 最小特権の原則とは、ユーザーやサービス・アカウントが必要なタスクを実行するために必要な最小限の権限セットのみを付与することです。
+> 例えば、ユーザーがデータベースの読み取り権限だけで必要なことをすべて実行できるのであれば、書き込み権限を与えるべきではない。
+
+#### c. さまざまなロールタイプの管理とカスタム IAM ロールの定義（基本ロール、事前定義ロール、カスタムロールなど）　
+
+注意
+> Google により管理されて適宜更新される事前定義ロールとは異なり、カスタムロールは、新しい権限が使用可能になったときに組織により保守されます。
+> つまり、カスタムロールを作ると自分達で権限の管理や更新対応をしないといけなくなる。
+
+[gcloud iam roles create](https://cloud.google.com/sdk/gcloud/reference/iam/roles/create)
+
+``` shell
+# カスタムロールの作り方（stageをALPHA, BETA, GA, DEPRECATED, DISABLED, EAPから選択する必要がある）
+# gcloud iam roles create [ROLE-ID] \
+# --project [PROJECT-ID] --title [ROLE-TITLE] \
+# --description [ROLE-DESCRIPTION] --permissions [PERMISSIONS-LIST] --stage [LAUNCH-STAGE]
+gcloud iam roles create customAppEngine1 \
+--project ace-exam-project --title='Custom Update App Engine' \
+--description='Custom update' --permissions=appengine.applications.update --stage=alpha
+```
 
 ### 5.2 サービス アカウントを管理する。以下のようなタスクを行います。
 
