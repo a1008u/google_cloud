@@ -37,6 +37,7 @@
 #### b. 可用性を考慮してネットワーク内のリソースのロケーションを決定する
 #### c. Cloud DNS の構成
 
+
 ## セクション 3. クラウド ソリューションのデプロイと実装
 
 ### 3.1 Compute Engine リソースをデプロイし、実装する。以下のようなタスクを行います。
@@ -46,6 +47,14 @@
 #### c. インスタンス用のカスタム SSH 認証鍵の生成 / アップロード
 #### d. Cloud Monitoring と Cloud Logging のエージェントをインストールし、構成する
 #### e. コンピューティングの割り当てを評価し、割り当ての増加をリクエストする
+#### f. アクセススコープについて
+[アクセススコープ](https://cloud.google.com/compute/docs/access/service-accounts#accesscopesiam)
+> アクセス スコープは、インスタンスの認証を指定するレガシーな方法です。これらは、gcloud CLI またはクライアント ライブラリからのリクエストで使用されるデフォルトの OAuth スコープを定義します
+
+- `gce`の場合`gcloud`や`api`に`gce`経由でアクセスする場合には、サービスアカウントとアクセススコープの両方の設定が必要。
+- 使用可能なアクセス スコープは多数ありますが、ベスト プラクティスは cloud-platform アクセス スコープを設定することです。
+    これは、ほとんどの Google Cloud の OAuth スコープです。サービス アカウントに IAM ロールを付与し、サービス アカウントのアクセス権を制御できます。
+    https://www.googleapis.com/auth/cloud-platform
 
 ### 3.2 Google Kubernetes Engine リソースをデプロイし、実装する。以下のようなタスクを行います。
 
@@ -67,9 +76,83 @@
 ### 3.5 ネットワーキング リソースをデプロイし、実装する。 以下のようなタスクを行います。
 
 #### a. サブネットを持つ VPC を作成する（カスタムモード VPC、共有 VPC など）
+VPCはグローバルリソースです。
+[[CLI]gcloud compute networks create](https://cloud.google.com/sdk/gcloud/reference/compute/networks/create)
+
+``` shell
+# --subnet-mode=auto => Subnets are created automatically. This is the recommended selection.
+gcloud compute networks create ace-exam-vpc1 --subnet-mode=auto
+#  --subnet-mode=custom => Create subnets manually.
+gcloud compute networks create ace-exam-vpc1 --subnet-mode=custom
+
+gcloud beta compute networks subnets create ace-exam-vpc-subnet1 \
+--network=ace- exam-vpc1 --region=us-west2 --range=10.10.0.0/16 \
+--enable-private-ip-google- access --enable-flow-logs
+```
+
+共有VPC
+
+- 共有VPCを作成するコマンドを実行する前に、組織メンバーに対して組織レベルまたはフォルダレベルでShared VPC Adminのロールを割り当てる必要があります。
+- Shared VPC Adminロールを割り当てるには、記述子roles/compute.xpnAdminを使用し、次のコマンドを実行します。
+
+``` shell
+# 事前準備
+gcloud organizations add-iam-policy-binding [ORG_ID] --member='user:[EMAIL_ADDRESS]' --role="roles/compute.xpnAdmin"
+gcloud beta resource-manager folders add-iam-policy-binding [FOLDER_ID] --member='user:[EMAIL_ADDRESS]' --role="roles/compute.xpnAdmin"
+gcloud beta resource-manager folders list --organization=[ORG_ID]
+
+# 共有VPC作成
+gcloud compute shared-vpc enable [HOST_PROJECT_ID]
+gcloud beta compute shared-vpc enable [HOST_PROJECT_ID]
+
+# HOSTと紐づけたいプロジェクトの紐付け
+gcloud compute shared-vpc associated-projects add [SERVICE_PROJECT_ID] --host-project [HOST_PROJECT_ID]
+gcloud beta compute shared-vpc associated-projects add [SERVICE_PROJECT_ID] --host-project [HOST_PROJECT_ID]
+
+```
+
+VPC peering
+
+- 2つのVPCをピアリングするには、それぞれのネットワークにpeeringを指定します。
+
+``` shell
+# ace-exam-network-Aの設定
+gcloud compute networks peerings create peer-ace-exam-1 \
+--network ace-exam-network-A \
+--peer-project ace-exam-project-B \
+--peer-network ace-exam-network-B \
+--auto-create-routes
+
+# ace-exam-network-Bの設定
+gcloud compute networks peerings create peer-ace-exam-1 \
+--network ace-exam-network-B \
+--peer-project ace-exam-project-A \
+--peer-network ace-exam-network-A \
+--auto-create-routes
+```
+
 #### b. カスタム ネットワーク構成を持つ Compute Engine インスタンスを起動する（内部専用 IP アドレス、限定公開の Google アクセス、静的外部 IP アドレスとプライベート IP アドレス、ネットワーク タグなど）
+
+``` shell
+gcloud compute instances create [INSTANCE_NAME] --subnet [SUBNET_NAME] --zone [ZONE_NAME]
+```
+
 #### c. VPC 用の上り（内向き）および下り（外向き）ファイアウォール ルール（例: IP サブネット、ネットワーク タグ、サービス アカウント）を作成する
+``` shell
+gcloud compute firewall-rules create ace-exam-fwr2 –-network ace-exam-vpc1 –-allow tcp:20000-25000
+```
 #### d. Cloud VPN を使用して Google VPC と外部ネットワークとの間の VPN を作成する
+
+- [[事例]GCP に VPC を構築して Cloud VPN で自宅ラボネットワークと VPN 接続](https://qiita.com/suzuyui/items/cfea1dc3d51a2e3be462)
+- [[事例]Google Cloud （GCP）でVPNを構築してAWS、Azureと通信する方法をご紹介！](hhttps://www.topgate.co.jp/gcp-vpn)
+- [[事例]GCPサイト間VPNの構築（6.gcloud CLI によるVPN接続の作成）](https://infrastructure-engineer.com/gcp-site-to-site-vpn-006/)
+
+
+``` shell
+gcloud compute vpn-gateways create GW_NAME_1 --network=NETWORK_1 --region=REGION_1 --stack-type=IP_STACK
+gcloud compute forwarding-rules create NAME --TARGET_SPECIFICATION=VPN_GATEWAY
+gcloud compute vpn-tunnels create NAME --peer-address=PEER_ADDRESS --shared-secret=SHARED_SECRET --target-vpn-gateway=TARGET_VPN_GATEWAY
+```
 
 #### e. アプリケーションへのネットワーク トラフィックを分散するロードバランサの作成（グローバル HTTP(S) ロードバランサ、グローバル SSL プロキシ ロードバランサ、グローバル TCP プロキシ ロードバランサ、リージョン ネットワーク ロードバランサ、リージョン内部ロードバランサなど）
 
@@ -81,6 +164,15 @@
 ### 3.7 Infrastructure as Code を介してリソースを実装する。 以下のようなタスクを行います。
 
 #### a. Cloud Foundation Toolkit テンプレートを使用してインフラストラクチャを構築し、ベスト プラクティスを実装する
+``` shell
+gcloud compute images list
+
+# gcloud deployment-manager deployments create
+gcloud deployment-manager deployments create quickstart-deployment --config vm.yaml
+# gcloud deployment-manager deployments describe
+gloud deployment-manager deployments describe quickstart-deployment
+
+```
 #### b. Google Kubernetes Engine に Config Connector をインストールして構成し、リソースの作成、更新、削除、保護に利用する
 
 
@@ -95,7 +187,7 @@
 #### d. 現在実行されている VM のインベントリ（インスタンス ID、詳細）を見る
 #### e. スナップショットを操作する（例: VM からのスナップショットの作成、スナップショットの表示、スナップショットの削除など）
 #### f. イメージを操作する（例: VM またはスナップショットからのイメージの作成、イメージの表示、イメージの削除など）
-#### g.インスタンス グループを操作する（例: 自動スケーリング パラメータの設定、インスタンス テンプレートの割り当てや作成、インスタンス グループの削除など）
+#### g. インスタンス グループを操作する（例: 自動スケーリング パラメータの設定、インスタンス テンプレートの割り当てや作成、インスタンス グループの削除など）
 #### h. 管理インターフェースを操作する（例: Google Cloud コンソール、Cloud Shell、Cloud SDK など）
 
 ### 4.2 Google Kubernetes Engine リソースを管理する。以下のようなタスクを行います。
@@ -172,7 +264,7 @@ gcloud projects add-iam-policy-binding ace-exam-project --member user:jane@ acee
 
 注意
 > Google により管理されて適宜更新される事前定義ロールとは異なり、カスタムロールは、新しい権限が使用可能になったときに組織により保守されます。
-> つまり、カスタムロールを作ると自分達で権限の管理や更新対応をしないといけなくなる。
+> つまり、カスタムロールを作ると自分達で権限の管理や更新対応をしないといけなくなる。今回はtableの最終更新日だけでいい（viewは不要）と思います。
 
 [gcloud iam roles create](https://cloud.google.com/sdk/gcloud/reference/iam/roles/create)
 
