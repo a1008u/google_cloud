@@ -34,8 +34,44 @@
 ### 2.4 ネットワーク リソースを計画し、構成する。以下のようなタスクを行います。
 
 #### a. 負荷分散オプションの違いを見分ける
+
+[Google Cloud （GCP）の多彩なロードバランサーを一挙に紹介！](https://www.topgate.co.jp/google-cloud-load-balancer)
+
+- L7(HTTP, HTTPS, WebSocket)
+    - 外部HTTP（S）負荷分散(マルチリージョンバックエンド)
+    - 内部HTTP（S）負荷分散(シングルリージョンバックエンド)
+- L4(TCP, UDP)
+    - TCP/SSLプロキシ負荷分散(外部)(マルチリージョンバックエンド)
+    - 外部 TCP/UDPネットワーク負荷分散(パススルー)(シングルリージョンバックエンド)
+    - 内部 TCP/UDP負荷分散(パススルー)(シングルリージョンバックエンド)
+
 #### b. 可用性を考慮してネットワーク内のリソースのロケーションを決定する
 #### c. Cloud DNS の構成
+
+- Aレコードは、IPv4でホスト名をIPアドレスにマッピングします。
+- AAAAレコードは、IPv6で名前をIPv6アドレスにマップするために使用されます。
+- CNAMEレコードは、ドメインの別名が含まれる正規の名前を保持します。
+- NSレコードとSOAレコードが追加される。
+- NSはネームサーバーレコードであり、ゾーン情報を管理する権威サーバーの アドレスを持つ。
+- SOAは権威の開始レコードで、ゾーンに関する権威的な情報を持っています。
+- AレコードやCNAMEレコードなど、他のレコードを追加することもできます。
+- TTL (time to live)およびTTL Unitパラメータは、レコードがキャッシュに保存される期間を指定します。
+
+``` shell
+gcloud beta dns managed-zones create ace-exam-zone1 --description= --dns- name=aceexamzone.com.
+gcloud beta dns managed-zones create ace-exam-zone1 --description= --dns- name=aceexamzone.com. --visibility=private --networks=default
+
+# To add an A record
+gcloud dns record-sets transaction start --zone=ace-exam-zone1
+gcloud dns record-sets transaction add 192.0.2.91 --name=aceexamzone.com. --ttl=300 --type=A --zone=ace-exam-zone1
+gcloud dns record-sets transaction execute --zone=ace-exam-zone1.
+
+# To create a CNAME record
+gcloud dns record-sets transaction start --zone=ace-exam-zone1
+gcloud dns record-sets transaction add server1.aceexamezone.com. -- name=www2.aceexamzone.com. --ttl=300 --type=CNAME --zone=ace-exam-zone1
+gcloud dns record-sets transaction execute --zone=ace-exam-zone1
+```
+
 
 
 ## セクション 3. クラウド ソリューションのデプロイと実装
@@ -71,6 +107,20 @@
 ### 3.4 データ ソリューションをデプロイし、実装する。以下のようなタスクを行います。
 
 #### a. 製品を使用してデータシステムを初期化する（例:Cloud SQL、Firestore、BigQuery、Cloud Spanner、Pub/Sub、Cloud Bigtable、Dataproc、Dataflow、Cloud Storage など）
+
+pub/sub
+```shell
+# gcloud pubsub topics create [TOPIC_NAME]
+# gcloud pubsub subscriptions create --topic [TOPIC_NAME] [SUBSCRIPTION_NAME]
+gcloud pubsub topics create ace-exam-topic1
+gcloud pubsub subscriptions create --topic=ace-exam-topic1 ace-exam-sub1
+
+# gcloud pubsub topics publish [TOPIC_NAME] --message [MESSAGE]
+# gcloud pubsub subscriptions pull --auto-ack [SUBSCRIPTION_NAME]
+gcloud pubsub topics publish ace-exam-topic1 ––message "first ace exam message" gcloud pubsub subscriptions pull ––auto-ack ace-exam-sub1
+
+```
+
 #### b. データを読み込む（コマンドラインによるアップロード、API による転送、インポート / エクスポート、Cloud Storage からのデータの読み込み、Cloud Pub/Sub へのデータのストリーミングなど）
 
 ### 3.5 ネットワーキング リソースをデプロイし、実装する。 以下のようなタスクを行います。
@@ -156,6 +206,13 @@ gcloud compute vpn-tunnels create NAME --peer-address=PEER_ADDRESS --shared-secr
 
 #### e. アプリケーションへのネットワーク トラフィックを分散するロードバランサの作成（グローバル HTTP(S) ロードバランサ、グローバル SSL プロキシ ロードバランサ、グローバル TCP プロキシ ロードバランサ、リージョン ネットワーク ロードバランサ、リージョン内部ロードバランサなど）
 
+``` shell
+gcloud compute target-pools create ace-exam-pool
+gcloud compute forwarding-rules create ace-exam-lb --port=80 --target-pool ace-exam-pool
+gcloud compute target-pools add-instances ace-exam-pool --instances ig1,ig2
+```
+
+
 ### 3.6 Cloud Marketplace を使用してソリューションをデプロイする。以下のようなタスクを行います。
 
 #### a. Cloud Marketplace カタログを閲覧し、ソリューションの詳細を見る
@@ -210,18 +267,257 @@ gloud deployment-manager deployments describe quickstart-deployment
 ### 4.4 ストレージとデータベースのソリューションを管理する。以下のようなタスクを行います。
 
 #### a. Cloud Storage のバケット内またはバケット間でオブジェクトを管理、保護する
+GCS
+``` shell
+# ストレージクラスを変更したい場合
+gsutil rewrite -s [STORAGE_CLASS] gs://[PATH_TO_OBJECT]
+
+# オブジェクトの移動をする場合
+gsutil mv gs://[SOURCE_BUCKET_NAME]/[SOURCE_OBJECT_NAME] \
+gs://[DESTINATION_BUCKET_NAME]/[DESTINATION_OBJECT_NAME]
+
+# オブジェクトのリネームをしたい場合
+gsutil mv gs://[BUCKET_NAME]/[OLD_OBJECT_NAME] gs://[BUCKET_NAME]/[NEW_OBJECT_NAME]
+```
+
 #### b. Cloud Storage バケットのオブジェクト ライフサイクル管理ポリシーを設定する
+
+```shell
+# <make bucket> gsutil mb gs://[BUCKET_NAME]/
+gsutil mb gs://ace-exam-bucket1/
+
+# gsutil cp [LOCAL_OBJECT_LOCATION] gs://[DESTINATION_BUCKET_NAME]/
+gsutil cp /home/mydir/README.txt gs://ace-exam-bucket1/
+gsutil cp gs://ace-exam-bucket1/README.txt /home/mydir/
+
+gsutil mv \
+ gs://[SOURCE_BUCKET_NAME]/[SOURCE_OBJECT_NAME] \
+ gs://[DESTINATION_BUCKET_NAME]/[DESTINATION_OBJECT_NAME]
+gsutil mv gs://ace-exam-bucket1/README.txt gs://ace-exam-bucket2/
+```
+
 #### c. データ インスタンス（例: Cloud SQL、BigQuery、Cloud Spanner、Cloud Datastore、Cloud Bigtable など）からデータを取得するクエリを実行する
+
+Cloud SQL
+``` shell
+# 接続からsqlの利用まで
+gcloud sql connect ace-exam-mysql –user=root
+CREATE DATABASE ace_exam_book;
+USE ace_exam_book;
+CREATE TABLE books (title VARCHAR(255), num_chapters INT, entity_id INT NOT NULL \AUTO_INCREMENT, PRIMARY KEY (entity_id));INSERT INTO books (title,num_chapters) VALUES ('ACE Exam Study Guide', 18);
+INSERT INTO books (title,num_chapters) VALUES ('Architecture Exam Study Guide', 18);
+SELECT * from books;
+```
+Cloud Datastore
+　- GQLを利用する
+
+BigQuery
+``` shell
+# bq ––location=[LOCATION] query ––use_legacy_sql=false ––dry_run [SQL_QUERY]
+
+# クエリ実行のjobを確認するコマンド
+bq --location=US show -j gcpace-project:US.bquijob_119adae7_167c373d5c3
+```
+
+Cloud Spanner
+``` shell
+```
+
+Cloud Bigtable
+``` shell
+gcloud components update
+gcloud components install cbt
+echo instance = ace-exam-bigtable >> ~/.cbtrc
+
+cbt createtable ace-exam-bt-table
+cbt ls
+# カラムを作るためにfamilyを作成
+cbt createfamily ace-exam-bt-table colfam1
+# familyにカラムを追加
+cbt set ace-exam-bt-table row1 colfam1:col1=ace-exam-value
+cbt read ace-exam-bt-table
+```
+
+Dataproc
+``` shell
+gcloud dataproc clusters create cluster-bc3d ––zone us-west2-a
+gcloud dataproc jobs submit spark ––cluster cluster-bc3d ––jar ace_exam_jar.jar
+```
+
 #### d. データ ストレージ リソースのコストを見積もる
 #### e. データ インスタンス（例: Cloud SQL、Datastore など）のバックアップと復元を行う
+
+> Cloud SQLの場合
+``` shell
+# gcloud sql backups create ––async ––instance [INSTANCE_NAME]
+gcloud sql backups create ––async ––instance ace-exam-mysql
+
+# gcloud sql instances patch [INSTANCE_NAME] –backup-start-time [HH:MM]
+gcloud sql instances patch ace-exam-mysql –backup-start-time 01:00
+```
+
+``` shell
+# バックアップの入れ先の作成
+gsutil mb gs://ace-exam-bucket1/
+# gcloud sql instances describe [INSTANCE_NAME]
+gcloud sql instances describe ace-exam-mysql1
+
+# gsutil acl ch -u [SERVICE_ACCOUNT_ADDRESS]:W gs://[BUCKET_NAME]
+gsutil acl ch -u tnkknzut25bezoq72bjbfmo5hu@spe-umbra-30.iam.gserviceaccount.com /
+ :W gs://ace-exam-bucket1
+
+# gcloud sql export sql [INSTANCE_NAME] gs://[BUCKET_NAME]/[FILE_NAME] \ --database=[DATABASE_NAME]
+gcloud sql export sql ace-exam-mysql1 \
+ gs://ace-exam-buckete1/ace-exam-mysqlexport.sql \
+　　--database=mysql
+
+# csvでのバックアップをする場合
+gcloud sql export csv ace-exam-mysql1 gs://ace-exam-buckete1/ace-exam-mysql-export.csv \ --database=mysql
+
+# gcloud sql import sql [INSTANCE_NAME] gs://[BUCKET_NAME]/[IMPORT_FILE_NAME] \ --database=[DATABASE_NAME]
+gcloud sql import sql ace-exam-mysql1 gs://ace-exam-buckete1/ace-exam-mysql-export.sql \ --database=mysql
+```
+
+> Datastoreの場合
+- バックアップ：GCSにバックアップファイルをアップロード
+- バックアップの利用：GCSからバックアップファイルをインポート
+``` shell
+# gsutil mb gs://[BUCKET_NAME]/
+gsutil mb gs://ace_exam_backups/
+
+# gcloud –namespaces='[NAMESPACE]' gs://[BUCKET_NAME}
+gcloud datastore export –namespaces='(default)' gs://ace_exam_backups
+
+# gcloud datastore import gs://[BUCKET]/[PATH]/[FILE].overall_export_metadata
+gcloud datastore import gs://ace_exam_backups/[FILE].overall_export_metadata
+```
+
+
+``` shell
+# gcloud datastore export --namespaces="(default)" gs://${BUCKET}
+gcloud datastore export \
+ --namespaces="(default)" \
+ gs://ace-exam-datastore1
+
+# gcloud datastore import gs://${BUCKET}/[PATH]/[FILE].overall_export_metadata
+gcloud datastore import \
+ gs://ace-exam-datastore1/2018-12-20T19:13:55_64324/ \
+ 2018-12-20T19:13:55_64324.overall_export_metadata
+```
+
+BigQueryの場合
+```shell
+# bq extract --destination_format [FORMAT] --compression [COMPRESSION_TYPE] --field_delimiter [DELIMITER] --print_header [BOOLEAN] [PROJECT_ID]:[DATASET]. [TABLE] gs://[BUCKET]/[FILENAME]
+bq extract \
+ --destination_format CSV \
+ --compression GZIP \
+ 'mydataset.mytable' \
+ gs://example-bucket/myfile.zip
+
+# bq load --autodetect --source_format=[FORMAT] [DATASET].[TABLE] [PATH_TO_SOURCE]
+# autodetect パラメータは、bq load がソースファイルからテーブルスキーマを自動的に検出するようにします。
+bq load \
+ --autodetect \
+ --source_format=CSV \
+ mydataset.mytable \
+ gs://ace-exam-biquery/mydata.csv
+```
+
+Cloud Spanner
+[Cloud Spanner がポイントインタイム リカバリ機能への対応を開始](https://cloud.google.com/blog/ja/products/databases/continuous-data-protection-here-for-spanner-with-pitr)
+
+backupと復元方法
+- Cloud console
+- CLI
+- クライアントライブラリ
+
+```shell
+# backup
+gcloud spanner backups create example-db-backup-6 \
+ --instance=test-instance \
+ --database=example-db \
+ --retention-period=1y \
+ --async
+
+# restore
+gcloud spanner databases restore \
+ --async \
+ --destination-instance=test-instance \
+ --destination-database=example-db-restored \
+ --source-instance=test-instance \
+ --source-backup=example-db-backup-6
+```
+
+Bigtableの場合
+
+backupと復元方法
+- Cloud console
+- CLI
+- クライアントライブラリ
+
+
+``` shell
+# backup
+gcloud  bigtable backups create BACKUP_ID \
+ --instance=INSTANCE_ID
+ --cluster=CLUSTER_ID \
+ --table=TABLE_ID \
+ --async \
+ --expiration-date=EXPIRATION_DATE \
+ --retention-period=RETENTION_PERIOD
+
+# resotre
+gcloud bigtable instances tables restore
+ --source-instance=INSTANCE_ID_SOURCE \
+ --source-cluster=CLUSTER_ID \
+ --source=BACKUP_ID \
+ --destination-instance=INSTANCE_ID_DESTINATION \
+ --destination=NEW_TABLE_ID \
+ --async
+```
+
+Dataprocの場合
+``` shell
+gcloud components install beta
+
+
+# gcloud beta dataproc clusters export [CLUSTER_NAME] --destination=[PATH_TO_EXPORT_FILE]
+gcloud beta dataproc clusters export ace-exam-dataproc-cluster \
+ --destination=gs://ace-exam-bucket1/mydataproc.yaml
+
+# gcloud beta dataproc clusters import [SOURCE_FILE]
+gcloud beta dataproc clusters import gs://ace-exam-bucket1/mydataproc.yaml
+```
+
 #### f. Dataproc、Dataflow、BigQuery のジョブ ステータスを確認する
 
 ### 4.5 ネットワーキング リソースを管理する。以下のようなタスクを行います。
 
 #### a. 既存の VPC にサブネットを追加する
 #### b. サブネットを拡張して IP アドレスを増やす
+
+``` shell
+gcloud compute networks subnets expand-ip-range ace-exam-subnet1 --prefix-length 16
+```
+
+
+- 静的IPアドレスは、プロジェクトに割り当てられ、リリースされるまで使用されます。Webサイトなどのサーバーに固定IPアドレスが必要な場合に使用されます。
+- エフェメラルIPアドレスは、リソースがIPアドレスを使用している間のみ存在し、例えば、同じプロジェクト内の他のVMからのみアクセスされるアプリケーションを実行しているVM上に存在します。
+
 #### c. 静的外部または内部 IP アドレスを予約する
+
+`--network-tier`には、2つのサービスがあります。
+- 低コストのStandardサービス層を使用するオプションがあり、これは一部のデータ転送にインターネットを使用します。
+- Premiumは、Googleのグローバルネットワークを介してすべてのトラフィックをルーティングします。
+
+``` shell
+gcloud beta compute addresses create ace-exam-reserved-static1 --region=us-west2 --network-tier=PREMIUM
+```
+
 #### d. CloudDNS、CloudNAT、ロードバランサ、ファイアウォール ルールを操作する
+
+
+
 
 ### 4.6 モニタリングとロギングを行う。以下のようなタスクを行います。
 
