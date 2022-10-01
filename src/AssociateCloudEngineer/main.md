@@ -31,6 +31,38 @@
 #### a. プロダクトの選択（Cloud SQL、BigQuery、Firestore、Cloud Spanner、Cloud Bigtable など）
 #### b. ストレージ オプションの選択（ゾーン永続ディスク、リージョン バランス永続ディスク、標準、Nearline、Coldline、Archive など）
 
+- (extreme-persistent-disk)[https://www.topgate.co.jp/gce-2021-information#extreme-persistent-disk]
+- (永続ディスクの概要)[https://cloud.google.com/compute/docs/disks/persistent-disks?hl=ja]
+- (開発者のためストレージ選択の指針！Googleが指南するGCPでの最適なストレージの選び方)[https://www.topgate.co.jp/google-cloud-day-storage]
+
+##### gce
+gceのディスクについて
+- 標準 Persistent Disk
+- バランス Persistent Disk
+- SSD Persistent Disk
+- extreme-persistent-disk
+
+gceのディスクを決める際には、下記2点を考えないといけないです。
+- サイズ
+- インタフェース(NVMe と SCSI)
+
+##### gcs
+- Standard
+  頻繁にアクセスするデータを保管するのに適しています。例えばCDNのようにコンテンツをグローバルに提供したり、ビデオのトランスコーディングのようにある程度のスループットが求められるようなデータの保管に利用することができます。
+- Nearline
+  目安として月に1度程度のアクセスがある場合に適しています。例えばバックアップデータ等があげられます。
+- Coldline
+  1年に1回程度しかアクセスしない、ほとんど触らないデータを保存するようなケースに適しています。画像のアーカイブや災害対策用のデータ等が該当します。
+- Archive
+  長期保存が必要なデータを保管するのに適しています。監査やコンプライアンス上の対応によりデータを長期的に保管しておく必要がある場合や、テープで保管していたデータの置き換えなどに利用することが想定されます。
+
+##### ストレージの選択基準
+- Read and Write Patterns
+- Consistency
+- Transaction Support
+- Cost
+- Latency
+
 ### 2.4 ネットワーク リソースを計画し、構成する。以下のようなタスクを行います。
 
 #### a. 負荷分散オプションの違いを見分ける
@@ -102,7 +134,74 @@ gcloud dns record-sets transaction execute --zone=ace-exam-zone1
 ### 3.3 Cloud Run リソース、Cloud Functions リソースをデプロイし、実装する。以下のようなタスクがあります（該当する場合）。
 
 #### a. アプリケーションをデプロイし、スケーリング構成、バージョン、トラフィック分割を更新する
+
+注意：Cloud Functionsは世代で動きが違うので確認
+- (Cloud Functionsの世代比較)[https://cloud.google.com/functions/docs/concepts/version-comparison]
+
+cloud functionsの場合
+[deploy例](https://cloud.google.com/functions/docs/deploy#cli-examples)
+``` bash
+gcloud functions deploy my-http-function \
+  --gen2 \
+  --region=us-central1 \
+  --runtime=nodejs16 \
+  --source=. \
+  --entry-point=myHttpFunction \
+  --trigger-http
+```
+
+cloud runの場合
+``` bash
+```
+
 #### b. Google Cloud イベント（Pub/Sub イベント、Cloud Storage オブジェクト変更通知イベントなど）を受け取るアプリケーションをデプロイする
+
+##### トリガー
+- HTTP トリガー
+- イベント トリガー:
+  - Pub/Sub トリガー
+    - オブジェクトのファイナライズ(新しいオブジェクトが作成されるか、既存のオブジェクトが上書きされ、そのオブジェクトの新しい世代が作成されると送信されます。)
+      - 第 2 世代: google.cloud.storage.object.v1.finalized（Eventarc 経由）
+      - 第 1 世代: google.storage.object.finalize
+    - オブジェクトの削除(オブジェクトが完全に削除された場合に発生します。)
+      - 第 2 世代: google.cloud.storage.object.v1.deleted（Eventarc 経由）
+      - 第 1 世代: google.storage.object.delete
+    - オブジェクトのアーカイブ(オブジェクトのライブ バージョンが非現行バージョンになると送信されます。詳細については、オブジェクトのバージョニングをご覧ください。)
+      - 第 2 世代: google.cloud.storage.object.v1.archived（Eventarc 経由）
+      - 第 1 世代: google.storage.object.archive
+    - オブジェクト メタデータの更新(既存オブジェクトのメタデータが変更された場合に送信されます。)
+      - 第 2 世代: google.cloud.storage.object.v1.metadataUpdated（Eventarc 経由）
+      - 第 1 世代: google.storage.object.metadataUpdate
+  - Cloud Storage トリガー
+  - Firestore トリガー
+    - Firebase 向け Google アナリティクス トリガー
+    - Firebase Realtime Database トリガー
+    - Firebase Authentication トリガー
+    - Firebase Remote Config トリガー
+
+cloud functionsの場合
+[deploy例](https://cloud.google.com/functions/docs/deploy#cli-examples)
+``` bash
+gcloud functions deploy my-pubsub-function \
+  --gen2 \
+  --region=europe-west1 \
+  --runtime=python39 \
+  --source=gs://my-bucket/my_function_source.zip \
+  --entry-point=pubsub_handler \
+  --trigger-topic=my-topic
+
+gcloud functions deploy my-storage-function \
+  --gen2 \
+  --region=asia-northeast1 \
+  --runtime=java11 \
+  --source=./functions/storage-function \
+  --entry-point=myproject.StorageFunction \
+  --trigger-event-filters="type=google.cloud.storage.object.v1.deleted" \
+  --trigger-event-filters="bucket=my-bucket"
+
+# 実行する場合はurlを叩くか、下記コマンドを利用
+gcloud functions describe nodejs-http-function --gen2 --region REGION --format="value(serviceConfig.uri)"
+```
 
 ### 3.4 データ ソリューションをデプロイし、実装する。以下のようなタスクを行います。
 
@@ -295,6 +394,49 @@ gsutil mv \
  gs://[DESTINATION_BUCKET_NAME]/[DESTINATION_OBJECT_NAME]
 gsutil mv gs://ace-exam-bucket1/README.txt gs://ace-exam-bucket2/
 ```
+
+```shell
+gsutil lifecycle set LIFECYCLE_CONFIG_FILE gs://BUCKET_NAME
+gsutil lifecycle get gs://BUCKET_NAME
+```
+
+LIFECYCLE_CONFIG_FILEの例
+[設定ファイルの詳細](https://cloud.google.com/storage/docs/json_api/v1/buckets?hl=ja#resource-representations)
+
+- オブジェクトの経過時間が 365 日（1 年）を超えていて、かつ、現在のストレージ クラスが
+  Standard ストレージ、Multi-Regional ストレージ、Durable Reduced Availability（DRA）ストレージのいずれかの場合、
+  オブジェクトのストレージ クラスを Nearline ストレージに変更する。
+- オブジェクトの経過期間が 1,095 日（3 年）を超えていて、かつ、現在のストレージ クラスが
+  Nearline ストレージの場合、オブジェクトのストレージ クラスを Coldline ストレージに変更する。
+``` json
+{
+    "lifecycle": {
+        "rule": [
+            {
+                "action": {
+                    "type": "SetStorageClass",
+                    "storageClass": "NEARLINE" // conditionのものをNearlineへ移動させる
+                },
+                "condition": {
+                    "age": 365,
+                    "matchesStorageClass": ["MULTI_REGIONAL", "STANDARD", "DURABLE_REDUCED_AVAILABILITY"]
+                }
+            },
+            {
+                "action": {
+                    "type": "SetStorageClass",
+                    "storageClass": "COLDLINE" // conditionのものをColdlineへ移動させる
+                },
+                "condition": {
+                    "age": 1095,
+                    "matchesStorageClass": ["NEARLINE"]
+                }
+            }
+        ]
+    }
+}
+```
+
 
 #### c. データ インスタンス（例: Cloud SQL、BigQuery、Cloud Spanner、Cloud Datastore、Cloud Bigtable など）からデータを取得するクエリを実行する
 
@@ -584,3 +726,10 @@ gcloud iam roles create customAppEngine1 \
 #### f. 有効期間が短いサービス アカウント認証情報の作成と管理
 
 ### 5.3 監査ログの表示
+
+
+## 6。その他
+### 6.1 memory store
+nodeのサイズについて
+- redis: 1-300GB
+- MEMCACHED: 1- 256GB
