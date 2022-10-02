@@ -733,3 +733,51 @@ gcloud iam roles create customAppEngine1 \
 nodeのサイズについて
 - redis: 1-300GB
 - MEMCACHED: 1- 256GB
+
+### 6.2 app engine
+
+####　app engineの階層構造について
+
+- Application
+  - service
+  - service
+  - service
+    - version
+    - version
+      - instance
+
+app engineのデフォルトURLは、
+> https://[プロジェクトid].appspot.com/
+
+``` shell
+gcloud components install app-engine-python
+
+# デプロイ(app.yaml, main.py, main_test.pyがある想定)
+# 　よく使うオプジョン
+# --version to specify a custom version ID
+# --project to specify the project ID to use for this app 
+# --no-promote to deploy the app without routing traffic to it
+gcloud app deploy app.yml
+```
+
+#### app.ymlについて
+
+- [スケーリング設定について](https://cloud.google.com/appengine/docs/standard/python3/config/appref?hl=ja#scaling_elements)
+
+#### トラフィック分割について
+
+分割手法
+- IP address
+- HTTP cookie(`GOOGAPPUID`を利用)
+- random selection
+
+
+``` shell
+# トラフィックの分割について
+# gcloud app services set-traffic [MY_SERVICE] \
+#  --splits [MY_VERSION1]=[VERSION1_WEIGHT],[MY_VERSION2]=[VERSION2_WEIGHT]
+#  --split-by [IP_OR_COOKIE]
+gcloud app services set-traffic serv1 --splits v1=.4,v2=.6
+
+gcloud app services set-traffic [MY_SERVICE] --splits [MY_VERSION]=1 --migrate
+```
